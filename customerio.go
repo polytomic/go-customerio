@@ -77,9 +77,10 @@ func (c *CustomerIO) IdentifyCtx(ctx context.Context, customerID string, attribu
 	if customerID == "" {
 		return ParamError{Param: "customerID"}
 	}
-	return c.request(ctx, "PUT",
+	_, err := c.request(ctx, "PUT",
 		fmt.Sprintf("%s/api/v1/customers/%s", c.URL, url.PathEscape(customerID)),
 		attributes)
+	return err
 }
 
 // Identify identifies a customer and sets their attributes
@@ -95,12 +96,13 @@ func (c *CustomerIO) TrackCtx(ctx context.Context, customerID string, eventName 
 	if eventName == "" {
 		return ParamError{Param: "eventName"}
 	}
-	return c.request(ctx, "POST",
+	_, err := c.request(ctx, "POST",
 		fmt.Sprintf("%s/api/v1/customers/%s/events", c.URL, url.PathEscape(customerID)),
 		map[string]interface{}{
 			"name": eventName,
 			"data": data,
 		})
+	return err
 }
 
 // Track sends a single event to Customer.io for the supplied user
@@ -123,7 +125,8 @@ func (c *CustomerIO) TrackAnonymousCtx(ctx context.Context, anonymousID, eventNa
 		payload["anonymous_id"] = anonymousID
 	}
 
-	return c.request(ctx, "POST", fmt.Sprintf("%s/api/v1/events", c.URL), payload)
+	_, err := c.request(ctx, "POST", fmt.Sprintf("%s/api/v1/events", c.URL), payload)
+	return err
 }
 
 // TrackAnonymous sends a single event to Customer.io for the anonymous user
@@ -136,9 +139,10 @@ func (c *CustomerIO) DeleteCtx(ctx context.Context, customerID string) error {
 	if customerID == "" {
 		return ParamError{Param: "customerID"}
 	}
-	return c.request(ctx, "DELETE",
+	_, err := c.request(ctx, "DELETE",
 		fmt.Sprintf("%s/api/v1/customers/%s", c.URL, url.PathEscape(customerID)),
 		nil)
+	return err
 }
 
 // Delete deletes a customer
@@ -167,9 +171,10 @@ func (c *CustomerIO) AddDeviceCtx(ctx context.Context, customerID string, device
 	for k, v := range data {
 		body["device"][k] = v
 	}
-	return c.request(ctx, "PUT",
+	_, err := c.request(ctx, "PUT",
 		fmt.Sprintf("%s/api/v1/customers/%s/devices", c.URL, url.PathEscape(customerID)),
 		body)
+	return err
 }
 
 // AddDevice adds a device for a customer
@@ -185,9 +190,10 @@ func (c *CustomerIO) DeleteDeviceCtx(ctx context.Context, customerID string, dev
 	if deviceID == "" {
 		return ParamError{Param: "deviceID"}
 	}
-	return c.request(ctx, "DELETE",
+	_, err := c.request(ctx, "DELETE",
 		fmt.Sprintf("%s/api/v1/customers/%s/devices/%s", c.URL, url.PathEscape(customerID), url.PathEscape(deviceID)),
 		nil)
+	return err
 }
 
 // DeleteDevice deletes a device for a customer
@@ -199,17 +205,17 @@ func (c *CustomerIO) auth() string {
 	return base64.URLEncoding.EncodeToString([]byte(fmt.Sprintf("%v:%v", c.siteID, c.apiKey)))
 }
 
-func (c *CustomerIO) request(ctx context.Context, method, url string, body interface{}) error {
+func (c *CustomerIO) request(ctx context.Context, method, url string, body interface{}) ([]byte, error) {
 	var req *http.Request
 	if body != nil {
 		j, err := json.Marshal(body)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		req, err = http.NewRequest(method, url, bytes.NewBuffer(j))
 		if err != nil {
-			return err
+			return nil, err
 		}
 		req = req.WithContext(ctx)
 
@@ -220,7 +226,7 @@ func (c *CustomerIO) request(ctx context.Context, method, url string, body inter
 		var err error
 		req, err = http.NewRequest(method, url, nil)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -228,24 +234,24 @@ func (c *CustomerIO) request(ctx context.Context, method, url string, body inter
 
 	resp, err := c.Client.Do(req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	responseBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return &CustomerIOError{
+		return nil, &CustomerIOError{
 			status: resp.StatusCode,
 			url:    url,
 			body:   responseBody,
 		}
 	}
 
-	return nil
+	return responseBody, nil
 }
 
 type IdentifierType string
@@ -290,15 +296,62 @@ func (c *CustomerIO) MergeCustomersCtx(ctx context.Context, primary Identifier, 
 		return ParamError{Param: "secondary"}
 	}
 
-	return c.request(ctx, "POST",
+	_, err := c.request(ctx, "POST",
 		fmt.Sprintf("%s/api/v1/merge_customers", c.URL),
 		map[string]interface{}{
 			"primary":   primary.kv(),
 			"secondary": secondary.kv(),
 		})
+	return err
+}
+
+type RegionResponse struct {
+	Url           string `json:"url"`
+	Region        string `json:"region"`
+	EnvironmentId int    `json:"environment_id"`
+}
+
+func (c *CustomerIO) Region(ctx context.Context) (RegionResponse, error) {
+	body, err := c.request(ctx, "GET",
+		fmt.Sprintf("%s/api/v1/accounts/region", c.URL),
+		nil,
+	)
+	if err != nil {
+		return RegionResponse{}, err
+	}
+	r := RegionResponse{}
+	err = json.Unmarshal(body, &r)
+	if err != nil {
+		return RegionResponse{}, err
+	}
+	return r, nil
+
 }
 
 // MergeCustomers sends a request to Customer.io to merge two customer profiles together.
 func (c *CustomerIO) MergeCustomers(primary Identifier, secondary Identifier) error {
 	return c.MergeCustomersCtx(context.Background(), primary, secondary)
+}
+
+func (c *CustomerIO) AddOrUpdate(ctx context.Context, id string, req *Customer) error {
+	outgoingAtts := map[string]interface{}{}
+	for k, v := range req.Attributes {
+		outgoingAtts[k] = v
+	}
+	if req.CreatedAt != nil {
+		outgoingAtts["created_at"] = req.CreatedAt.UTC().Unix()
+	}
+	if req.Email != "" {
+		outgoingAtts["email"] = req.Email
+	}
+	if req.ID != "" {
+		outgoingAtts["id"] = req.ID
+	}
+	url := fmt.Sprintf("%s/api/v1/customers/%s", c.URL, id)
+	_, err := c.request(ctx, "PUT", url, outgoingAtts)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
