@@ -25,23 +25,6 @@ type Customer struct {
 	ID         string                 `json:"id,omitempty"`
 }
 
-func (c Customer) MarshalJSON() ([]byte, error) {
-	// Render non-nil times as epoch seconds
-	type Alias Customer
-
-	t := int64(0)
-	if c.CreatedAt != nil && !c.CreatedAt.IsZero() {
-		t = c.CreatedAt.UTC().Unix()
-	}
-	return json.Marshal(&struct {
-		CreatedAt int64 `json:"created_at,omitempty"`
-		Alias
-	}{
-		CreatedAt: t,
-		Alias:     (Alias)(c),
-	})
-}
-
 type searchResponse struct {
 	Customer struct {
 		Attributes struct {
