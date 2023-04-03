@@ -19,21 +19,23 @@ var ErrCustomerNotFound = errors.New("customer not found")
 // bodies. That said--it's more of an entity definition than an api def (though
 // we use it as both)
 type Customer struct {
-	Attributes map[string]interface{} `json:"attributes,omitempty"`
-	CioID      string                 `json:"cio_id,omitempty"`
-	CreatedAt  *time.Time             `json:"created_at,omitempty"`
-	Email      string                 `json:"email,omitempty"`
-	ID         string                 `json:"id,omitempty"`
+	Attributes   map[string]interface{} `json:"attributes,omitempty"`
+	CioID        string                 `json:"cio_id,omitempty"`
+	CreatedAt    *time.Time             `json:"created_at,omitempty"`
+	Email        string                 `json:"email,omitempty"`
+	ID           string                 `json:"id,omitempty"`
+	Unsubscribed *bool                  `json:"unsubscribed,omitempty"`
 }
 
 type attributesResponse struct {
 	Customer struct {
 		Attributes struct {
-			Attributes string `json:"attributes"`
-			CioID      string `json:"cio_id"`
-			CreatedAt  string `json:"created_at"`
-			Email      string `json:"email"`
-			ID         string `json:"id"`
+			Attributes   string `json:"attributes"`
+			CioID        string `json:"cio_id"`
+			CreatedAt    string `json:"created_at"`
+			Email        string `json:"email"`
+			ID           string `json:"id"`
+			Unsubscribed string `json:"unsubscribed"`
 		} `json:"attributes"`
 	} `json:"customer"`
 }
@@ -77,13 +79,18 @@ func (c *APIClient) GetCustomer(ctx context.Context, id string, idType Identifie
 		thyme = &unixS
 	}
 
-	return Customer{
+	cust := Customer{
 		Attributes: attributes,
 		CioID:      resp.Customer.Attributes.CioID,
 		CreatedAt:  thyme,
 		Email:      resp.Customer.Attributes.Email,
 		ID:         resp.Customer.Attributes.ID,
-	}, nil
+	}
+	if resp.Customer.Attributes.Unsubscribed != "" {
+		subbed := resp.Customer.Attributes.Unsubscribed == "true"
+		cust.Unsubscribed = &subbed
+	}
+	return cust, nil
 }
 
 type customerSearchRequest struct {

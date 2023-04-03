@@ -347,6 +347,10 @@ func (c *CustomerIO) AddOrUpdate(ctx context.Context, id string, req *Customer) 
 	if req.ID != "" {
 		outgoingAtts["id"] = req.ID
 	}
+	if req.Unsubscribed != nil {
+		outgoingAtts["unsubscribed"] = req.Unsubscribed
+	}
+
 	url := fmt.Sprintf("%s/api/v1/customers/%s", c.URL, id)
 	_, err := c.request(ctx, "PUT", url, outgoingAtts)
 	if err != nil {
