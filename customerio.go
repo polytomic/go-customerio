@@ -213,7 +213,7 @@ func (c *CustomerIO) request(ctx context.Context, method, url string, body inter
 			return nil, err
 		}
 
-		req, err = http.NewRequest(method, url, bytes.NewBuffer(j))
+		req, err = http.NewRequestWithContext(ctx, method, url, bytes.NewBuffer(j))
 		if err != nil {
 			return nil, err
 		}
@@ -224,7 +224,7 @@ func (c *CustomerIO) request(ctx context.Context, method, url string, body inter
 		req.Header.Add("Content-Length", strconv.Itoa(len(j)))
 	} else {
 		var err error
-		req, err = http.NewRequest(method, url, nil)
+		req, err = http.NewRequestWithContext(ctx, method, url, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -358,4 +358,14 @@ func (c *CustomerIO) AddOrUpdate(ctx context.Context, id string, req *Customer) 
 	}
 
 	return nil
+}
+
+func (c *CustomerIO) AddCustomersToSegment(ctx context.Context, id int, customerIDs []string) error {
+	_, err := c.request(ctx, http.MethodPost,
+		fmt.Sprintf("%s/api/v1/segments/%d/add_customers", c.URL, id),
+		map[string]interface{}{
+			"ids": customerIDs,
+		},
+	)
+	return err
 }
