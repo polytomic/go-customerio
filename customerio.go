@@ -360,12 +360,28 @@ func (c *CustomerIO) AddOrUpdate(ctx context.Context, id string, req *Customer) 
 	return nil
 }
 
-func (c *CustomerIO) AddCustomersToSegment(ctx context.Context, id int, customerIDs []string) error {
+// AddCustomersToSegment adds customers to an existing manual segment. The
+// customers will be identified by the specified identifier type. Customers
+// without a value for that identifier will be skipped. The first return value
+// is the number of identities that we attempted to add to the segment.
+func (c *CustomerIO) AddCustomersToSegment(ctx context.Context, segmentID int, customers []Customer, identifier IdentifierType) (int, error) {
+	identifiers := make([]string, 0, len(customers))
+	for _, customer := range customers {
+		switch identifier {
+		case IdentifierTypeID:
+			identifiers = append(identifiers, customer.ID)
+		case IdentifierTypeEmail:
+			identifiers = append(identifiers, customer.Email)
+		case IdentifierTypeCioID:
+			identifiers = append(identifiers, customer.CioID)
+		}
+	}
+
 	_, err := c.request(ctx, http.MethodPost,
-		fmt.Sprintf("%s/api/v1/segments/%d/add_customers", c.URL, id),
+		fmt.Sprintf("%s/api/v1/segments/%d/add_customers?id_type=%s", c.URL, segmentID, identifier),
 		map[string]interface{}{
-			"ids": customerIDs,
+			"ids": identifiers,
 		},
 	)
-	return err
+	return len(identifiers), err
 }
