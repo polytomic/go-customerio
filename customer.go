@@ -129,7 +129,7 @@ func NewEqAttribute(field string, value string) attributeCondition {
 // LookupCustomerIds takes a list of emails/ids/cio ids and returns a list of
 // the same size with the valid (if any) cio ids.
 func (c *APIClient) LookupCustomerioIds(ctx context.Context, ids []string, idType IdentifierType) ([]string, error) {
-	// A better thing to do would be to split these into batches and then issue
+	// A better thing to do would be to split these into es and then issue
 	// requests, one per 1k results. This is just a nicety at this point, so
 	// I'll leave that for another time.
 	if len(ids) > 1000 {

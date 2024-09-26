@@ -260,6 +260,10 @@ const (
 	IdentifierTypeID    IdentifierType = "id"
 	IdentifierTypeEmail IdentifierType = "email"
 	IdentifierTypeCioID IdentifierType = "cio_id"
+
+	IdentifierTypeName        IdentifierType = "name"
+	IdentifierTypeCioObjectID IdentifierType = "cio_object_id"
+	IdentifierTypeObjectID    IdentifierType = "object_id"
 )
 
 type Identifier struct {
