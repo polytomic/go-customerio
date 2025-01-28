@@ -22,6 +22,16 @@ type GetCustomObjectAttributesResponse struct {
 	} `json:"object" `
 }
 
+type GetCustomObjectRelationshipsResponse struct {
+	ObjectTypeID string `json:"object_type_id"`
+	Identifiers  struct {
+		CioID string `json:"cio_id"`
+		Email string `json:"email"`
+	} `json:"identifiers"`
+	Attributes map[string]any `json:"attributes"`
+	Timestamps map[string]any `json:"timestamps"`
+}
+
 func (c *APIClient) ListCustomObjects(ctx context.Context) ([]CustomObject, error) {
 	body, statusCode, err := c.doRequest(ctx, "GET", "/v1/object_types", nil)
 	if err != nil {
@@ -65,12 +75,13 @@ func (c *APIClient) FindCustomObjects(ctx context.Context, objectTypeID string, 
 }
 
 func (c *APIClient) GetCustomObjectAttributes(ctx context.Context, objectTypeID, objectID string) (map[string]any, error) {
-	body, statusCode, err := c.doRequest(ctx, "GET", fmt.Sprintf("/v1/objects/%s/%s/attributes", objectTypeID, objectID), nil)
+	url := fmt.Sprintf("/v1/objects/%s/%s/attributes", objectTypeID, objectID)
+	body, statusCode, err := c.doRequest(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
 	if statusCode != http.StatusOK {
-		return nil, &CustomerIOError{status: statusCode, url: "/v1/object_types", body: body}
+		return nil, &CustomerIOError{status: statusCode, url: url, body: body}
 	}
 
 	var respObj struct {
@@ -83,6 +94,27 @@ func (c *APIClient) GetCustomObjectAttributes(ctx context.Context, objectTypeID,
 	}
 
 	return respObj.Object.Attributes, nil
+}
+
+func (c *APIClient) GetCustomObjectRelationships(ctx context.Context, objectTypeID, objectID string) ([]GetCustomObjectRelationshipsResponse, error) {
+	url := fmt.Sprintf("/v1/objects/%s/%s/relationships", objectTypeID, objectID)
+
+	body, statusCode, err := c.doRequest(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	if statusCode != http.StatusOK {
+		return nil, &CustomerIOError{status: statusCode, url: url, body: body}
+	}
+
+	var respObj struct {
+		CioRelationships []GetCustomObjectRelationshipsResponse `json:"cio_relationships"`
+	}
+	if err := json.Unmarshal(body, &respObj); err != nil {
+		return nil, err
+	}
+
+	return respObj.CioRelationships, nil
 }
 
 func (c *CustomerIO) TrackWriteBatch(ctx context.Context, actions []map[string]any) error {
