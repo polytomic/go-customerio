@@ -27,6 +27,7 @@ type GetCustomObjectRelationshipsResponse struct {
 	Identifiers  struct {
 		CioID string `json:"cio_id"`
 		Email string `json:"email"`
+		ID    string `json:"id"`
 	} `json:"identifiers"`
 	Attributes map[string]any `json:"attributes"`
 	Timestamps map[string]any `json:"timestamps"`
