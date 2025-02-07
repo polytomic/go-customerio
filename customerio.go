@@ -25,11 +25,51 @@ type CustomerIO struct {
 	Client    *http.Client
 }
 
+// { "batch_index": 0, "reason": "value missing for mandatory field", "field": "identifiers.object_id", "message": "property identifiers.object_id required" }
+type BatchError struct {
+	BatchIndex int    `json:"batch_index"`
+	Reason     string `json:"reason"`
+	Field      string `json:"field"`
+	Message    string `json:"message"`
+}
+
+func (e BatchError) Error() string {
+	return fmt.Sprintf("Field: %s, Message: %s, Reason: %s.", e.Field, e.Message, e.Reason)
+}
+
+type BatchErrors struct {
+	Errors []BatchError `json:"errors"`
+}
+
+func (e BatchErrors) ErrorForIndex(i int) error {
+	errStr := ""
+
+	for _, err := range e.Errors {
+		if err.BatchIndex == i {
+			errStr += err.Error() + " "
+		}
+	}
+
+	return errors.New(errStr)
+}
+
 // CustomerIOError is returned by any method that fails at the API level
 type CustomerIOError struct {
 	status int
 	url    string
 	body   []byte
+}
+
+func (e *CustomerIOError) Status() int {
+	return e.status
+}
+
+func (e *CustomerIOError) URL() string {
+	return e.url
+}
+
+func (e *CustomerIOError) Body() []byte {
+	return e.body
 }
 
 func (e *CustomerIOError) Error() string {
