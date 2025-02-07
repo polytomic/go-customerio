@@ -40,6 +40,51 @@ type attributesResponse struct {
 	} `json:"customer"`
 }
 
+type customerioRelationshipResponse struct {
+	CioRelationships []RelationshipsResponse `json:"cio_relationships"`
+	Next             string
+}
+
+func (c *APIClient) GetCustomerRelationships(ctx context.Context, id string) ([]RelationshipsResponse, error) {
+	return c.getRelationships(ctx, fmt.Sprintf("/v1/customers/%s/relationships", id))
+}
+
+func (c *APIClient) getRelationships(ctx context.Context, rootURL string) ([]RelationshipsResponse, error) {
+	var rels []RelationshipsResponse
+	start := ""
+	for {
+		v := url.Values{}
+		v.Add("limit", "100")
+		if start != "" {
+			v.Add("start", start)
+		}
+		qs := v.Encode()
+		url := fmt.Sprintf("%s?%s", rootURL, qs)
+		body, statusCode, err := c.doRequest(ctx, "GET", url, nil)
+		if err != nil {
+			return nil, err
+		}
+		if statusCode != http.StatusOK {
+			return nil, &CustomerIOError{status: statusCode, url: url, body: body}
+		}
+
+		var resp customerioRelationshipResponse
+		err = json.Unmarshal(body, &resp)
+		if err != nil {
+			return nil, err
+		}
+
+		rels = append(rels, resp.CioRelationships...)
+		if resp.Next == "" {
+			break
+		}
+
+		start = resp.Next
+	}
+
+	return rels, nil
+}
+
 func (c *APIClient) GetCustomer(ctx context.Context, id string, idType IdentifierType) (Customer, error) {
 	v := url.Values{}
 	v.Add("id_type", string(idType))
