@@ -45,8 +45,11 @@ type customerioRelationshipResponse struct {
 	Next             string
 }
 
-func (c *APIClient) GetCustomerRelationships(ctx context.Context, id string) ([]RelationshipsResponse, error) {
-	return c.getRelationships(ctx, fmt.Sprintf("/v1/customers/%s/relationships", id))
+func (c *APIClient) GetCustomerRelationships(ctx context.Context, id string, idType IdentifierType) ([]RelationshipsResponse, error) {
+	v := url.Values{}
+	v.Add("id_type", string(idType))
+	qs := v.Encode()
+	return c.getRelationships(ctx, fmt.Sprintf("/v1/customers/%s/relationships?id_type=%s", id, qs))
 }
 
 func (c *APIClient) getRelationships(ctx context.Context, rootURL string) ([]RelationshipsResponse, error) {
