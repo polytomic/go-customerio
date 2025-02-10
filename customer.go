@@ -48,15 +48,20 @@ type customerioRelationshipResponse struct {
 func (c *APIClient) GetCustomerRelationships(ctx context.Context, id string, idType IdentifierType) ([]RelationshipsResponse, error) {
 	v := url.Values{}
 	v.Add("id_type", string(idType))
-	qs := v.Encode()
-	return c.getRelationships(ctx, fmt.Sprintf("/v1/customers/%s/relationships?id_type=%s", id, qs))
+	return c.getRelationships(ctx, fmt.Sprintf("/v1/customers/%s/relationships", id), v)
 }
 
-func (c *APIClient) getRelationships(ctx context.Context, rootURL string) ([]RelationshipsResponse, error) {
+func (c *APIClient) getRelationships(ctx context.Context, rootURL string, defualtValues url.Values) ([]RelationshipsResponse, error) {
 	var rels []RelationshipsResponse
 	start := ""
 	for {
 		v := url.Values{}
+		for k, vList := range defualtValues {
+			for _, val := range vList {
+				v.Add(k, val)
+			}
+		}
+
 		v.Add("limit", "100")
 		if start != "" {
 			v.Add("start", start)

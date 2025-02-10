@@ -100,7 +100,7 @@ func (c *APIClient) GetCustomObjectAttributes(ctx context.Context, objectTypeID,
 }
 
 func (c *APIClient) GetCustomObjectRelationships(ctx context.Context, objectTypeID, objectID string) ([]RelationshipsResponse, error) {
-	return c.getRelationships(ctx, fmt.Sprintf("/v1/objects/%s/%s/relationships", objectTypeID, objectID))
+	return c.getRelationships(ctx, fmt.Sprintf("/v1/objects/%s/%s/relationships", objectTypeID, objectID), nil)
 }
 
 func (c *CustomerIO) TrackWriteBatch(ctx context.Context, actions []map[string]any) error {
