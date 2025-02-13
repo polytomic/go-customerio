@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -27,16 +26,37 @@ type Customer struct {
 	Unsubscribed *bool                  `json:"unsubscribed,omitempty"`
 }
 
+/*
+	"customer": {
+			"id": "",
+			"identifiers": {
+				"cio_id": "afee09000001",
+				"email": "nia.kunde@feedstock.com"
+			},
+			"attributes": {
+				"cio_id": "afee09000001",
+				"email": "nia.kunde@feedstock.com",
+				"name": "{\"first_name\":\"Nia\",\"last_name\":\"Kunde\"}"
+			},
+			"timestamps": {
+				"cio_id": 1715780449,
+				"email": 0,
+				"name": 1715780447
+			},
+			"unsubscribed": false,
+			"devices": []
+		}
+*/
 type attributesResponse struct {
 	Customer struct {
-		Attributes struct {
-			Attributes   string `json:"attributes"`
-			CioID        string `json:"cio_id"`
-			CreatedAt    string `json:"created_at"`
-			Email        string `json:"email"`
-			ID           string `json:"id"`
-			Unsubscribed string `json:"unsubscribed"`
-		} `json:"attributes"`
+		ID          string `json:"id"`
+		Identifiers struct {
+			CioID string `json:"cio_id"`
+			Email string `json:"email"`
+		} `json:"identifiers"`
+		Attributes   map[string]any   `json:"attributes"`
+		Timestamps   map[string]int64 `json:"timestamps"`
+		Unsubscribed bool             `json:"unsubscribed"`
 	} `json:"customer"`
 }
 
@@ -142,35 +162,19 @@ func (c *APIClient) GetCustomer(ctx context.Context, id string, idType Identifie
 		return Customer{}, err
 	}
 
-	attributes := map[string]interface{}{}
-	if js, err := strconv.Unquote(resp.Customer.Attributes.Attributes); err != nil && js != "" {
-		err = json.Unmarshal([]byte(js), &attributes)
-		if err != nil {
-			return Customer{}, err
-		}
-	}
-
-	var thyme *time.Time
-	if resp.Customer.Attributes.CreatedAt != "" {
-		createdInt, err := strconv.Atoi(resp.Customer.Attributes.CreatedAt)
-		if err != nil {
-			return Customer{}, err
-		}
-		unixS := time.Unix(int64(createdInt), 0)
-		thyme = &unixS
-	}
-
 	cust := Customer{
-		Attributes: attributes,
-		CioID:      resp.Customer.Attributes.CioID,
-		CreatedAt:  thyme,
-		Email:      resp.Customer.Attributes.Email,
-		ID:         resp.Customer.Attributes.ID,
+		Attributes:   resp.Customer.Attributes,
+		CioID:        resp.Customer.Identifiers.CioID,
+		Email:        resp.Customer.Identifiers.Email,
+		ID:           resp.Customer.ID,
+		Unsubscribed: &resp.Customer.Unsubscribed,
 	}
-	if resp.Customer.Attributes.Unsubscribed != "" {
-		subbed := resp.Customer.Attributes.Unsubscribed == "true"
-		cust.Unsubscribed = &subbed
+
+	if ts, ok := resp.Customer.Timestamps["cio_id"]; ok {
+		unixS := time.Unix(int64(ts), 0)
+		cust.CreatedAt = &unixS
 	}
+
 	return cust, nil
 }
 
