@@ -63,7 +63,7 @@ func (c *APIClient) FindCustomObjects(ctx context.Context, objectTypeID string, 
 		return nil, err
 	}
 	if statusCode != http.StatusOK {
-		return nil, &CustomerIOError{status: statusCode, url: "/v1/object_types", body: body}
+		return nil, &CustomerIOError{status: statusCode, url: "/v1/objects", body: body}
 	}
 
 	var respObj struct {

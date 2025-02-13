@@ -93,6 +93,34 @@ func (c *APIClient) getRelationships(ctx context.Context, rootURL string, defual
 	return rels, nil
 }
 
+type FindCustomersResponse struct {
+	CioID string `json:"cio_id"`
+	ID    string `json:"id"`
+	Email string `json:"email"`
+}
+
+func (c *APIClient) FindCustomers(ctx context.Context, filter map[string]any) ([]FindCustomersResponse, error) {
+	body, statusCode, err := c.doRequest(ctx, "POST", "/v1/customers", map[string]any{
+		"filter": filter,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if statusCode != http.StatusOK {
+		return nil, &CustomerIOError{status: statusCode, url: "/v1/customers", body: body}
+	}
+
+	var respObj struct {
+		Identifiers []FindCustomersResponse `json:"identifiers"`
+	}
+
+	if err := json.Unmarshal(body, &respObj); err != nil {
+		return nil, err
+	}
+
+	return respObj.Identifiers, nil
+}
+
 func (c *APIClient) GetCustomer(ctx context.Context, id string, idType IdentifierType) (Customer, error) {
 	v := url.Values{}
 	v.Add("id_type", string(idType))
