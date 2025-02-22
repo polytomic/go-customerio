@@ -7,6 +7,11 @@ import (
 	"net/http"
 )
 
+const (
+	OperatorExists string = "exists"
+	OperatorEq     string = "eq"
+)
+
 type CustomObject struct {
 	ID           string `json:"id"`
 	Name         string `json:"name"`
@@ -54,7 +59,25 @@ func (c *APIClient) ListCustomObjects(ctx context.Context) ([]CustomObject, erro
 	return respObj.Types, nil
 }
 
-func (c *APIClient) FindCustomObjects(ctx context.Context, objectTypeID string, filter map[string]any) ([]string, error) {
+type ObjectAttribute struct {
+	TypeID   string `json:"type_id"`
+	Field    string `json:"field"`
+	Operator string `json:"operator"`
+	Value    any    `json:"value"`
+}
+
+type ObjectAttributeCondition struct {
+	Attribute ObjectAttribute `json:"object_attribute,omitempty"`
+}
+
+type CustomObjectFilter struct {
+	Attribute *ObjectAttribute           `json:"object_attribute,omitempty"`
+	Or        []ObjectAttributeCondition `json:"or,omitempty"`
+	And       []ObjectAttributeCondition `json:"and,omitempty"`
+	Not       *ObjectAttributeCondition  `json:"not,omitempty"`
+}
+
+func (c *APIClient) FindCustomObjects(ctx context.Context, objectTypeID string, filter CustomObjectFilter) ([]string, error) {
 	body, statusCode, err := c.doRequest(ctx, "POST", "/v1/objects", map[string]any{
 		"object_type_id": objectTypeID,
 		"filter":         filter,
