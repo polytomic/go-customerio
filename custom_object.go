@@ -78,26 +78,39 @@ type CustomObjectFilter struct {
 }
 
 func (c *APIClient) FindCustomObjects(ctx context.Context, objectTypeID string, filter CustomObjectFilter) ([]string, error) {
-	body, statusCode, err := c.doRequest(ctx, "POST", "/v1/objects", map[string]any{
-		"object_type_id": objectTypeID,
-		"filter":         filter,
-	})
-	if err != nil {
-		return nil, err
-	}
-	if statusCode != http.StatusOK {
-		return nil, &CustomerIOError{status: statusCode, url: "/v1/objects", body: body}
-	}
+	start := ""
+	more := true
+	results := []string{}
 
-	var respObj struct {
-		IDs []string `json:"ids"`
-	}
+	for more {
+		url := "/v1/objects"
+		if start != "" {
+			url = fmt.Sprintf("%s?start=%s", url, start)
+		}
+		body, statusCode, err := c.doRequest(ctx, "POST", url, map[string]any{
+			"object_type_id": objectTypeID,
+			"filter":         filter,
+		})
+		if err != nil {
+			return nil, err
+		}
+		if statusCode != http.StatusOK {
+			return nil, &CustomerIOError{status: statusCode, url: "/v1/objects", body: body}
+		}
 
-	if err := json.Unmarshal(body, &respObj); err != nil {
-		return nil, err
-	}
+		var respObj struct {
+			IDs  []string `json:"ids"`
+			Next string   `json:"next"`
+		}
 
-	return respObj.IDs, nil
+		if err := json.Unmarshal(body, &respObj); err != nil {
+			return nil, err
+		}
+		results = append(results, respObj.IDs...)
+		start = respObj.Next
+		more = start != ""
+	}
+	return results, nil
 }
 
 func (c *APIClient) GetCustomObjectAttributes(ctx context.Context, objectTypeID, objectID string) (map[string]any, error) {
