@@ -77,40 +77,35 @@ type CustomObjectFilter struct {
 	Not       *ObjectAttributeCondition  `json:"not,omitempty"`
 }
 
-func (c *APIClient) FindCustomObjects(ctx context.Context, objectTypeID string, filter CustomObjectFilter) ([]string, error) {
-	start := ""
-	more := true
-	results := []string{}
-
-	for more {
-		url := "/v1/objects"
-		if start != "" {
-			url = fmt.Sprintf("%s?start=%s", url, start)
-		}
-		body, statusCode, err := c.doRequest(ctx, "POST", url, map[string]any{
-			"object_type_id": objectTypeID,
-			"filter":         filter,
-		})
-		if err != nil {
-			return nil, err
-		}
-		if statusCode != http.StatusOK {
-			return nil, &CustomerIOError{status: statusCode, url: "/v1/objects", body: body}
-		}
-
-		var respObj struct {
-			IDs  []string `json:"ids"`
-			Next string   `json:"next"`
-		}
-
-		if err := json.Unmarshal(body, &respObj); err != nil {
-			return nil, err
-		}
-		results = append(results, respObj.IDs...)
-		start = respObj.Next
-		more = start != ""
+// FindCustomObjects returns custom objects using the provided filter. If there
+// are additional pages of results the second return argument will be the
+// starting token for a subsequent request.
+func (c *APIClient) FindCustomObjects(ctx context.Context, objectTypeID string, filter CustomObjectFilter, start string) ([]string, string, error) {
+	url := "/v1/objects"
+	if start != "" {
+		url = fmt.Sprintf("%s?start=%s", url, start)
 	}
-	return results, nil
+	body, statusCode, err := c.doRequest(ctx, "POST", url, map[string]any{
+		"object_type_id": objectTypeID,
+		"filter":         filter,
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	if statusCode != http.StatusOK {
+		return nil, "", &CustomerIOError{status: statusCode, url: "/v1/objects", body: body}
+	}
+
+	var respObj struct {
+		IDs  []string `json:"ids"`
+		Next string   `json:"next"`
+	}
+
+	if err := json.Unmarshal(body, &respObj); err != nil {
+		return nil, "", err
+	}
+
+	return respObj.IDs, respObj.Next, nil
 }
 
 func (c *APIClient) GetCustomObjectAttributes(ctx context.Context, objectTypeID, objectID string) (map[string]any, error) {
