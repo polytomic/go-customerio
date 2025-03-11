@@ -7,6 +7,11 @@ import (
 	"net/http"
 )
 
+const (
+	OperatorExists string = "exists"
+	OperatorEq     string = "eq"
+)
+
 type CustomObject struct {
 	ID           string `json:"id"`
 	Name         string `json:"name"`
@@ -54,27 +59,53 @@ func (c *APIClient) ListCustomObjects(ctx context.Context) ([]CustomObject, erro
 	return respObj.Types, nil
 }
 
-func (c *APIClient) FindCustomObjects(ctx context.Context, objectTypeID string, filter map[string]any) ([]string, error) {
-	body, statusCode, err := c.doRequest(ctx, "POST", "/v1/objects", map[string]any{
+type ObjectAttribute struct {
+	TypeID   string `json:"type_id"`
+	Field    string `json:"field"`
+	Operator string `json:"operator"`
+	Value    any    `json:"value"`
+}
+
+type ObjectAttributeCondition struct {
+	Attribute ObjectAttribute `json:"object_attribute,omitempty"`
+}
+
+type CustomObjectFilter struct {
+	Attribute *ObjectAttribute           `json:"object_attribute,omitempty"`
+	Or        []ObjectAttributeCondition `json:"or,omitempty"`
+	And       []ObjectAttributeCondition `json:"and,omitempty"`
+	Not       *ObjectAttributeCondition  `json:"not,omitempty"`
+}
+
+// FindCustomObjects returns custom objects using the provided filter. If there
+// are additional pages of results the second return argument will be the
+// starting token for a subsequent request.
+func (c *APIClient) FindCustomObjects(ctx context.Context, objectTypeID string, filter CustomObjectFilter, start string) ([]string, string, error) {
+	url := "/v1/objects"
+	if start != "" {
+		url = fmt.Sprintf("%s?start=%s", url, start)
+	}
+	body, statusCode, err := c.doRequest(ctx, "POST", url, map[string]any{
 		"object_type_id": objectTypeID,
 		"filter":         filter,
 	})
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if statusCode != http.StatusOK {
-		return nil, &CustomerIOError{status: statusCode, url: "/v1/objects", body: body}
+		return nil, "", &CustomerIOError{status: statusCode, url: "/v1/objects", body: body}
 	}
 
 	var respObj struct {
-		IDs []string `json:"ids"`
+		IDs  []string `json:"ids"`
+		Next string   `json:"next"`
 	}
 
 	if err := json.Unmarshal(body, &respObj); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	return respObj.IDs, nil
+	return respObj.IDs, respObj.Next, nil
 }
 
 func (c *APIClient) GetCustomObjectAttributes(ctx context.Context, objectTypeID, objectID string) (map[string]any, error) {
