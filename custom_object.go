@@ -113,3 +113,12 @@ func (c *CustomerIO) TrackWriteBatch(ctx context.Context, actions []map[string]a
 
 	return nil
 }
+
+func (c *CustomerIO) TrackWriteBatchRaw(ctx context.Context, body string) error {
+	_, err := c.request(ctx, "POST", fmt.Sprintf("%s/api/v2/batch", c.URL), body)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

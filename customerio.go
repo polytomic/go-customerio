@@ -248,12 +248,22 @@ func (c *CustomerIO) auth() string {
 func (c *CustomerIO) request(ctx context.Context, method, url string, body interface{}) ([]byte, error) {
 	var req *http.Request
 	if body != nil {
-		j, err := json.Marshal(body)
-		if err != nil {
-			return nil, err
+		var buf *bytes.Buffer
+		bodyLength := 0
+		switch b := body.(type) {
+		case string:
+			buf = bytes.NewBuffer([]byte(b))
+			bodyLength = len(b)
+		default:
+			j, err := json.Marshal(body)
+			if err != nil {
+				return nil, err
+			}
+			buf = bytes.NewBuffer(j)
+			bodyLength = len(j)
 		}
 
-		req, err = http.NewRequestWithContext(ctx, method, url, bytes.NewBuffer(j))
+		req, err := http.NewRequestWithContext(ctx, method, url, buf)
 		if err != nil {
 			return nil, err
 		}
@@ -261,7 +271,7 @@ func (c *CustomerIO) request(ctx context.Context, method, url string, body inter
 
 		req.Header.Add("User-Agent", c.UserAgent)
 		req.Header.Add("Content-Type", "application/json")
-		req.Header.Add("Content-Length", strconv.Itoa(len(j)))
+		req.Header.Add("Content-Length", strconv.Itoa(bodyLength))
 	} else {
 		var err error
 		req, err = http.NewRequestWithContext(ctx, method, url, nil)
