@@ -263,11 +263,11 @@ func (c *CustomerIO) request(ctx context.Context, method, url string, body inter
 			bodyLength = len(j)
 		}
 
-		req, err := http.NewRequestWithContext(ctx, method, url, buf)
+		var err error
+		req, err = http.NewRequestWithContext(ctx, method, url, buf)
 		if err != nil {
 			return nil, err
 		}
-		req = req.WithContext(ctx)
 
 		req.Header.Add("User-Agent", c.UserAgent)
 		req.Header.Add("Content-Type", "application/json")
