@@ -113,32 +113,40 @@ func (c *APIClient) getRelationships(ctx context.Context, rootURL string, defual
 	return rels, nil
 }
 
-type FindCustomersResponse struct {
+type FindCustomersIdentity struct {
 	CioID string `json:"cio_id"`
 	ID    string `json:"id"`
 	Email string `json:"email"`
 }
 
-func (c *APIClient) FindCustomers(ctx context.Context, filter map[string]any) ([]FindCustomersResponse, error) {
-	body, statusCode, err := c.doRequest(ctx, "POST", "/v1/customers", map[string]any{
+type FindCustomersResponse struct {
+	Identifiers []FindCustomersIdentity `json:"identifiers"`
+	Next        string                  `json:"next"`
+}
+
+func (c *APIClient) FindCustomers(ctx context.Context, filter map[string]any, start string) (FindCustomersResponse, error) {
+	url := "/v1/customers?limit=1000"
+	if start != "" {
+		url = fmt.Sprintf("%s&start=%s", url, start)
+	}
+
+	body, statusCode, err := c.doRequest(ctx, "POST", url, map[string]any{
 		"filter": filter,
 	})
 	if err != nil {
-		return nil, err
+		return FindCustomersResponse{}, err
 	}
 	if statusCode != http.StatusOK {
-		return nil, &CustomerIOError{status: statusCode, url: "/v1/customers", body: body}
+		return FindCustomersResponse{}, &CustomerIOError{status: statusCode, url: url, body: body}
 	}
 
-	var respObj struct {
-		Identifiers []FindCustomersResponse `json:"identifiers"`
-	}
+	var respObj FindCustomersResponse
 
 	if err := json.Unmarshal(body, &respObj); err != nil {
-		return nil, err
+		return FindCustomersResponse{}, err
 	}
 
-	return respObj.Identifiers, nil
+	return respObj, nil
 }
 
 func (c *APIClient) GetCustomer(ctx context.Context, id string, idType IdentifierType) (Customer, error) {
