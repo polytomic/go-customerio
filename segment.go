@@ -8,11 +8,37 @@ import (
 )
 
 type Segment struct {
-	ID          int    `json:"id,omitempty"`
-	Name        string `json:"name,omitempty"`
-	Description string `json:"description,omitempty"`
-	State       string `json:"state,omitempty"`
-	Type        string `json:"type,omitempty"`
+	ID            int    `json:"id,omitempty"`
+	DeduplicateID string `json:"deduplicate_id,omitempty"`
+	Name          string `json:"name,omitempty"`
+	Description   string `json:"description,omitempty"`
+	State         string `json:"state,omitempty"`
+	Type          string `json:"type,omitempty"`
+}
+
+func (c *APIClient) CreateSegment(ctx context.Context, name, description string) (Segment, error) {
+	body, statusCode, err := c.doRequest(ctx, "POST", "/v1/segments", map[string]any{
+		"segment": map[string]any{
+			"name":        name,
+			"description": description,
+		},
+	})
+	if err != nil {
+		return Segment{}, fmt.Errorf("failed to create segment: %w", err)
+	}
+
+	if statusCode != http.StatusOK {
+		return Segment{}, &CustomerIOError{status: statusCode, url: "/v1/segments", body: body}
+	}
+
+	var envelope struct {
+		Segment Segment `json:"segment"`
+	}
+
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		return Segment{}, fmt.Errorf("failed to unmarshal segment response: %w", err)
+	}
+	return envelope.Segment, nil
 }
 
 func (c *APIClient) ListSegments(ctx context.Context) ([]Segment, error) {
