@@ -76,3 +76,34 @@ func (c *APIClient) GetSegment(ctx context.Context, id int) (Segment, error) {
 	}
 	return envelope.Segment, nil
 }
+
+type Identifiers struct {
+	CioID string `json:"cio_id"`
+	ID    string `json:"id"`
+	Email string `json:"email"`
+}
+type SegmentMemberResponse struct {
+	IDs         []string      `json:"ids"`
+	Identifiers []Identifiers `json:"identifiers"`
+	Next        string        `json:"next"`
+}
+
+func (c *APIClient) ListSegmentMembers(ctx context.Context, segmentID int, start string) (*SegmentMemberResponse, error) {
+	url := fmt.Sprintf("/segments/%d/membership?limit=30000", segmentID)
+	if start != "" {
+		url = fmt.Sprintf("%s&start=%s", url, start)
+	}
+	body, statusCode, err := c.doRequest(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	if statusCode != http.StatusOK {
+		return nil, &CustomerIOError{status: statusCode, url: fmt.Sprintf("/segments/%d/membership", segmentID), body: body}
+	}
+
+	var respObj SegmentMemberResponse
+	if err := json.Unmarshal(body, &respObj); err != nil {
+		return nil, err
+	}
+	return &respObj, nil
+}

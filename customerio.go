@@ -419,6 +419,14 @@ func (c *CustomerIO) AddOrUpdate(ctx context.Context, id string, req *Customer) 
 // without a value for that identifier will be skipped. The first return value
 // is the number of identities that we attempted to add to the segment.
 func (c *CustomerIO) AddCustomersToSegment(ctx context.Context, segmentID int, customers []Customer, identifier IdentifierType) (int, error) {
+	return c.mutateCustomerSegment(ctx, segmentID, customers, identifier, true)
+}
+
+func (c *CustomerIO) RemoveCustomersFromSegment(ctx context.Context, segmentID int, customers []Customer, identifier IdentifierType) (int, error) {
+	return c.mutateCustomerSegment(ctx, segmentID, customers, identifier, false)
+}
+
+func (c *CustomerIO) mutateCustomerSegment(ctx context.Context, segmentID int, customers []Customer, identifier IdentifierType, isAdd bool) (int, error) {
 	identifiers := make([]string, 0, len(customers))
 	for _, customer := range customers {
 		switch identifier {
@@ -431,8 +439,15 @@ func (c *CustomerIO) AddCustomersToSegment(ctx context.Context, segmentID int, c
 		}
 	}
 
+	var route string
+	if isAdd {
+		route = "add_customers"
+	} else {
+		route = "remove_customers"
+	}
+
 	_, err := c.request(ctx, http.MethodPost,
-		fmt.Sprintf("%s/api/v1/segments/%d/add_customers?id_type=%s", c.URL, segmentID, identifier),
+		fmt.Sprintf("%s/api/v1/segments/%d/%s?id_type=%s", c.URL, segmentID, route, identifier),
 		map[string]interface{}{
 			"ids": identifiers,
 		},
