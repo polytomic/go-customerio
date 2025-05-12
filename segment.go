@@ -89,7 +89,7 @@ type SegmentMemberResponse struct {
 }
 
 func (c *APIClient) ListSegmentMembers(ctx context.Context, segmentID int, start string) (*SegmentMemberResponse, error) {
-	url := fmt.Sprintf("/segments/%d/membership?limit=30000", segmentID)
+	url := fmt.Sprintf("/v1/segments/%d/membership?limit=30000", segmentID)
 	if start != "" {
 		url = fmt.Sprintf("%s&start=%s", url, start)
 	}
